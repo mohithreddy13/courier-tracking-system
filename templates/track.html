@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Track Parcel — Courier Tracking{% endblock %}
+{% block topbar_title %}Track a Parcel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Shipment Tracking</h1>
+  <p>Enter a tracking ID to view the current status and complete shipment history.</p>
+</div>
+
+<!-- Search form -->
+<div class="card mb-6">
+  <form method="POST" action="{{ url_for('track') }}" id="trackForm">
+    <div style="display:flex;gap:12px;align-items:flex-end;">
+      <div class="form-group" style="flex:1;">
+        <label class="form-label" for="trackingId">Tracking ID</label>
+        <input class="form-control" type="text" id="trackingId" name="trackingId"
+               placeholder="e.g. CPT-00000001"
+               value="{{ tid }}"
+               style="font-family:monospace;font-size:1rem;letter-spacing:.04em;"
+               required />
+      </div>
+      <button type="submit" class="btn btn-primary" id="track-submit-btn" style="height:42px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Track
+      </button>
+    </div>
+  </form>
+</div>
+
+{% if error %}
+<div class="alert alert-error">
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  {{ error }}
+</div>
+{% endif %}
+
+{% if parcel %}
+<!-- ── Parcel Summary ── -->
+<div class="card mb-6">
+  <div class="card-header">
+    <div>
+      <div class="card-title">{{ parcel.trackingId }}</div>
+      <div class="text-xs text-muted mt-4">{{ parcel.description or 'General Parcel' }}</div>
+    </div>
+    {% set sc = {'Booked':'badge-booked','Picked Up':'badge-picked','In Transit':'badge-transit','Out for Delivery':'badge-out','Delivered':'badge-delivered','Failed Delivery':'badge-failed','Returned':'badge-returned'} %}
+    <span class="badge {{ sc.get(parcel.status, 'badge-booked') }}" style="font-size:.85rem;padding:6px 14px;">{{ parcel.status }}</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">
+    <!-- Sender -->
+    <div>
+      <div class="text-xs text-muted font-bold" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Sender</div>
+      <div style="font-weight:600;">{{ parcel.sender.name }}</div>
+      <div class="text-sm text-muted">{{ parcel.sender.phone }}</div>
+      <div class="text-sm text-muted">{{ parcel.sender.address }}</div>
+    </div>
+    <!-- Receiver -->
+    <div>
+      <div class="text-xs text-muted font-bold" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Receiver</div>
+      <div style="font-weight:600;">{{ parcel.receiver.name }}</div>
+      <div class="text-sm text-muted">{{ parcel.receiver.phone }}</div>
+      <div class="text-sm text-muted">{{ parcel.receiver.address }}</div>
+    </div>
+    <!-- Shipment -->
+    <div>
+      <div class="text-xs text-muted font-bold" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Shipment</div>
+      <div class="text-sm"><strong>Route:</strong> {{ parcel.origin }} → {{ parcel.destination }}</div>
+      <div class="text-sm"><strong>Weight:</strong> {{ parcel.weight }} kg</div>
+      <div class="text-sm"><strong>Charge:</strong> ₹{{ "%.2f"|format(parcel.deliveryCharge) }}</div>
+    </div>
+    <!-- Dates -->
+    <div>
+      <div class="text-xs text-muted font-bold" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Dates</div>
+      <div class="text-sm"><strong>Booked:</strong> {{ parcel.bookedAt[:10] if parcel.bookedAt else '—' }}</div>
+      <div class="text-sm"><strong>Est. Delivery:</strong> {{ parcel.estimatedDelivery[:10] if parcel.estimatedDelivery else '—' }}</div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--navy-100);display:flex;gap:10px;">
+    <a href="{{ url_for('update_status_page') }}" class="btn btn-primary btn-sm" id="update-status-link">Update Status</a>
+    <a href="{{ url_for('edit_parcel', parcel_id=parcel._id) }}" class="btn btn-secondary btn-sm" id="edit-parcel-link">Edit Details</a>
+  </div>
+</div>
+
+<!-- ── Timeline ── -->
+{% if history %}
+<div class="card">
+  <div class="card-header"><span class="card-title">Tracking Timeline</span></div>
+  <div class="timeline">
+    {% set dot_colors = {'Booked':'blue','Picked Up':'amber','In Transit':'purple','Out for Delivery':'teal','Delivered':'green','Failed Delivery':'red','Returned':'grey'} %}
+    {% for event in history %}
+    <div class="timeline-item">
+      <div class="timeline-dot {{ dot_colors.get(event.status, 'blue') }}"></div>
+      <div class="timeline-content">
+        <div class="timeline-status">{{ event.status }}</div>
+        <div class="timeline-location">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          {{ event.location }}
+        </div>
+        {% if event.remarks %}
+        <div class="timeline-remarks">{{ event.remarks }}</div>
+        {% endif %}
+        <div class="timeline-time">{{ event.updatedAt[:19].replace('T',' ') if event.updatedAt else '' }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,13 @@
+{
+  "name": "courier-indexing-demo",
+  "version": "1.0.0",
+  "description": "Node.js MongoDB indexing demonstration for Courier Parcel Tracking System",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "mongodb": "^6.8.0",
+    "dotenv": "^16.4.5"
+  }
+}

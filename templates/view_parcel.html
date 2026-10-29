@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}View Parcel {{ parcel.trackingId }} — Courier Tracking{% endblock %}
+{% block topbar_title %}View Parcel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Parcel Details</h1>
+  <p>Full shipment record and tracking history for <strong>{{ parcel.trackingId }}</strong>.</p>
+</div>
+
+<div class="card mb-6">
+  <div class="card-header">
+    <div>
+      <div class="card-title">{{ parcel.trackingId }}</div>
+      <div class="text-xs text-muted" style="margin-top:4px;">{{ parcel.description or 'General Parcel' }}</div>
+    </div>
+    {% set sc = {'Booked':'badge-booked','Picked Up':'badge-picked','In Transit':'badge-transit','Out for Delivery':'badge-out','Delivered':'badge-delivered','Failed Delivery':'badge-failed','Returned':'badge-returned'} %}
+    <span class="badge {{ sc.get(parcel.status, 'badge-booked') }}" style="font-size:.85rem;padding:6px 14px;">{{ parcel.status }}</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:24px;">
+    <div>
+      <div class="text-xs text-muted font-bold" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Sender</div>
+      <div style="font-weight:600;">{{ parcel.sender.name }}</div>
+      <div class="text-sm">📞 {{ parcel.sender.phone }}</div>
+      {% if parcel.sender.email %}<div class="text-sm text-muted">{{ parcel.sender.email }}</div>{% endif %}
+      <div class="text-sm text-muted">{{ parcel.sender.address }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted font-bold" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Receiver</div>
+      <div style="font-weight:600;">{{ parcel.receiver.name }}</div>
+      <div class="text-sm">📞 {{ parcel.receiver.phone }}</div>
+      {% if parcel.receiver.email %}<div class="text-sm text-muted">{{ parcel.receiver.email }}</div>{% endif %}
+      <div class="text-sm text-muted">{{ parcel.receiver.address }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted font-bold" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Shipment</div>
+      <div class="text-sm"><strong>Origin:</strong> {{ parcel.origin }}</div>
+      <div class="text-sm"><strong>Destination:</strong> {{ parcel.destination }}</div>
+      <div class="text-sm"><strong>Weight:</strong> {{ parcel.weight }} kg</div>
+      <div class="text-sm"><strong>Charge:</strong> ₹{{ "%.2f"|format(parcel.deliveryCharge) }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-muted font-bold" style="text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Dates</div>
+      <div class="text-sm"><strong>Booked:</strong> {{ parcel.bookedAt[:10] if parcel.bookedAt else '—' }}</div>
+      <div class="text-sm"><strong>Est. Delivery:</strong> {{ parcel.estimatedDelivery[:10] if parcel.estimatedDelivery else '—' }}</div>
+      <div class="text-sm text-muted font-mono" style="margin-top:8px;font-size:.7rem;">ID: {{ parcel._id }}</div>
+    </div>
+  </div>
+
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--navy-100);display:flex;gap:10px;">
+    <a href="{{ url_for('edit_parcel', parcel_id=parcel._id) }}" class="btn btn-primary btn-sm" id="edit-parcel-btn">Edit Details</a>
+    <a href="{{ url_for('update_status_page') }}" class="btn btn-secondary btn-sm" id="update-status-from-view-btn">Update Status</a>
+    <a href="{{ url_for('manage') }}" class="btn btn-secondary btn-sm" id="back-to-manage-btn">← Back</a>
+  </div>
+</div>
+
+{% if history %}
+<div class="card">
+  <div class="card-header"><span class="card-title">Complete Tracking Timeline</span></div>
+  <div class="timeline">
+    {% set dot_colors = {'Booked':'blue','Picked Up':'amber','In Transit':'purple','Out for Delivery':'teal','Delivered':'green','Failed Delivery':'red','Returned':'grey'} %}
+    {% for event in history %}
+    <div class="timeline-item">
+      <div class="timeline-dot {{ dot_colors.get(event.status, 'blue') }}"></div>
+      <div class="timeline-content">
+        <div class="timeline-status">{{ event.status }}</div>
+        <div class="timeline-location">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          {{ event.location }}
+        </div>
+        {% if event.remarks %}<div class="timeline-remarks">{{ event.remarks }}</div>{% endif %}
+        <div class="timeline-time">{{ event.updatedAt[:19].replace('T',' ') if event.updatedAt else '' }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

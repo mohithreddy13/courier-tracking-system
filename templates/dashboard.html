@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Courier Parcel Tracking{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Operations Dashboard</h1>
+  <p>Live metrics from MongoDB — refreshed on every page load.</p>
+</div>
+
+<!-- ═══ STAT CARDS ═══ -->
+<div class="stat-grid">
+
+  <div class="stat-card">
+    <div class="stat-icon blue">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12v10H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+    </div>
+    <div class="stat-body">
+      <div class="stat-label">Total Parcels</div>
+      <div class="stat-value" data-target="{{ summary.get('total', 0) }}">0</div>
+      <div class="stat-sub">All registered parcels</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon purple">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+    <div class="stat-body">
+      <div class="stat-label">In Transit</div>
+      <div class="stat-value" data-target="{{ summary.get('in_transit', 0) }}">0</div>
+      <div class="stat-sub">Currently moving</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon green">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+    <div class="stat-body">
+      <div class="stat-label">Delivered</div>
+      <div class="stat-value" data-target="{{ summary.get('delivered', 0) }}">0</div>
+      <div class="stat-sub">Successfully delivered</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon amber">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>
+    </div>
+    <div class="stat-body">
+      <div class="stat-label">Pending</div>
+      <div class="stat-value" data-target="{{ summary.get('pending', 0) }}">0</div>
+      <div class="stat-sub">Booked / Picked / Out</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon red">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    </div>
+    <div class="stat-body">
+      <div class="stat-label">Failed / Returned</div>
+      <div class="stat-value" data-target="{{ (summary.get('failed', 0) + summary.get('returned', 0)) }}">0</div>
+      <div class="stat-sub">Delivery failures</div>
+    </div>
+  </div>
+
+  <div class="stat-card">
+    <div class="stat-icon teal">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    </div>
+    <div class="stat-body">
+      <div class="stat-label">Total Revenue</div>
+      <div class="stat-value" data-target="{{ summary.get('totalCharges', 0)|round(2) }}" data-float="true" data-prefix="₹">0</div>
+      <div class="stat-sub">Delivery charges collected</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══ CHARTS ═══ -->
+<div class="charts-grid">
+
+  <div class="chart-card">
+    <div class="card-header">
+      <span class="card-title">Status Distribution</span>
+    </div>
+    <canvas id="statusChart"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <div class="card-header">
+      <span class="card-title">Top Destinations</span>
+    </div>
+    <canvas id="destChart"></canvas>
+  </div>
+
+  <div class="chart-card" style="grid-column: 1 / -1;">
+    <div class="card-header">
+      <span class="card-title">Daily Booking Trend (Last 30 Days)</span>
+    </div>
+    <canvas id="trendChart"></canvas>
+  </div>
+
+</div>
+
+<!-- ═══ RECENT PARCELS ═══ -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Recent Parcels</span>
+    <a href="{{ url_for('manage') }}" class="btn btn-secondary btn-sm" id="view-all-parcels-btn">View All</a>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Tracking ID</th>
+          <th>Sender</th>
+          <th>Receiver</th>
+          <th>Origin → Destination</th>
+          <th>Weight</th>
+          <th>Charge</th>
+          <th>Status</th>
+          <th>Booked</th>
+        </tr>
+      </thead>
+      <tbody id="recentParcelsBody">
+        <tr><td colspan="8" class="text-muted" style="text-align:center;padding:24px;">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const summary = {{ summary | tojson }};
+
+// ── Status Doughnut Chart ──────────────────────────────────
+(function() {
+  const byStatus = summary.byStatus || [];
+  const labels   = byStatus.map(d => d.status);
+  const values   = byStatus.map(d => d.count);
+  const colors   = ['#2563eb','#d97706','#7c3aed','#0d9488','#16a34a','#dc2626','#64748b'];
+
+  new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: {
+        legend: { position: 'right', labels: { font: { family: 'Inter', size: 12 }, padding: 16 } }
+      },
+      cutout: '60%',
+    }
+  });
+})();
+
+// ── Top Destinations Bar Chart ────────────────────────────
+(function() {
+  const dest   = summary.topDestinations || [];
+  const labels = dest.map(d => d.city);
+  const values = dest.map(d => d.count);
+
+  new Chart(document.getElementById('destChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Parcels',
+        data: values,
+        backgroundColor: '#2563eb22',
+        borderColor: '#2563eb',
+        borderWidth: 2, borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f1f5f9' },
+             ticks: { font: { family: 'Inter', size: 11 } } },
+        x: { grid: { display: false },
+             ticks: { font: { family: 'Inter', size: 11 } } },
+      }
+    }
+  });
+})();
+
+// ── Daily Trend Line Chart ────────────────────────────────
+(function() {
+  const daily  = summary.dailyTrends || [];
+  const labels = daily.map(d => d.date);
+  const values = daily.map(d => d.count);
+
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Parcels Booked',
+        data: values,
+        borderColor: '#2563eb', borderWidth: 2.5,
+        backgroundColor: 'rgba(37,99,235,.08)',
+        fill: true, tension: 0.4, pointRadius: 3,
+        pointBackgroundColor: '#2563eb',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: '#f1f5f9' },
+             ticks: { font: { family: 'Inter', size: 11 } } },
+        x: { grid: { display: false },
+             ticks: { maxTicksLimit: 10, font: { family: 'Inter', size: 11 } } },
+      }
+    }
+  });
+})();
+
+// ── Recent Parcels Table ──────────────────────────────────
+fetch('/api/dashboard')
+  .then(r => r.json())
+  .catch(() => ({}))
+  .then(() => {
+    // Load recent parcels from manage endpoint
+    fetch('/manage?search=&_json=1')
+      .catch(() => null);
+  });
+
+// Directly use the already-loaded summary; for parcels table call manage
+loadRecentParcels();
+
+async function loadRecentParcels() {
+  try {
+    const res  = await fetch('/manage?_limit=10');
+    // We use a direct API-less approach: render from server
+    // Fetch parcels via JSON trick is not set up; use a simpler table render
+    const tbody = document.getElementById('recentParcelsBody');
+    tbody.innerHTML = '<tr><td colspan="8" class="text-muted" style="text-align:center;padding:24px;">See <a href="/manage" style="color:var(--blue)">Manage Parcels</a> for full list.</td></tr>';
+  } catch(e) {}
+}
+</script>
+
+<script>
+// Re-run stat animation after page content renders
+document.querySelectorAll('.stat-value[data-target]').forEach(el => {
+  const target  = parseFloat(el.getAttribute('data-target'));
+  const isFloat = el.getAttribute('data-float') === 'true';
+  const prefix  = el.getAttribute('data-prefix') || '';
+  let   start   = 0;
+  const duration = 1400;
+  const startTime = performance.now();
+  function update(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const current = start + (target - start) * ease;
+    el.textContent = prefix + (isFloat
+      ? current.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : Math.floor(current).toLocaleString('en-IN')
+    );
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  requestAnimationFrame(update);
+});
+</script>
+{% endblock %}

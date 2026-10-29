@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Database & Indexes — Courier Tracking{% endblock %}
+{% block topbar_title %}Database & Index Information{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Database &amp; Index Information</h1>
+  <p>Live metadata retrieved from MongoDB using PyMongo <code>list_indexes()</code> and <code>listCollections</code>.</p>
+</div>
+
+<!-- ═══ COLLECTION STATS ═══ -->
+<div class="stat-grid mb-6">
+  {% for col in col_info %}
+  <div class="stat-card">
+    <div class="stat-icon blue">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+    </div>
+    <div class="stat-body">
+      <div class="stat-label">{{ col.name }}</div>
+      <div class="stat-value">{{ col.count }}</div>
+      <div class="stat-sub">{{ col.size_kb }} KB on disk &nbsp;·&nbsp; {{ col.indexes|length }} indexes</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- ═══ INDEXES ═══ -->
+{% for col in col_info %}
+<div class="card mb-6">
+  <div class="card-header">
+    <span class="card-title">Indexes — <code>{{ col.name }}</code></span>
+    <span class="badge badge-booked">{{ col.indexes|length }} index{{ 'es' if col.indexes|length != 1 else '' }}</span>
+  </div>
+  <div class="table-wrap">
+    <table class="index-table">
+      <thead>
+        <tr>
+          <th>Index Name</th>
+          <th>Key(s)</th>
+          <th>Unique</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for idx in col.indexes %}
+        <tr>
+          <td><code>{{ idx.name }}</code></td>
+          <td>
+            {% for k, v in idx.key.items() %}
+            <span class="badge badge-booked" style="margin-right:4px;font-family:monospace;">{{ k }}: {{ v }}</span>
+            {% endfor %}
+          </td>
+          <td>
+            {% if idx.unique %}
+            <span class="badge badge-delivered">Yes</span>
+            {% else %}
+            <span class="text-muted text-xs">No</span>
+            {% endif %}
+          </td>
+          <td class="text-sm text-muted">
+            {% if idx.name == '_id_' %}Default MongoDB primary key index.
+            {% elif 'trackingId_unique' in idx.name %}Ensures no duplicate tracking IDs across all parcels.
+            {% elif idx.name == 'idx_status' %}Speeds up status-filter queries and aggregation $match on status.
+            {% elif idx.name == 'idx_destination' %}Accelerates destination-filter queries and top-destination aggregations.
+            {% elif idx.name == 'idx_bookedAt' %}Enables fast date-range queries for booking trend reports.
+            {% elif 'compound' in idx.name %}Compound index used by tracking history timeline lookups.
+            {% else %}Supporting index.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endfor %}
+
+<!-- ═══ SCHEMA VALIDATION ═══ -->
+{% for col in col_info %}
+<div class="card mb-6">
+  <div class="card-header">
+    <span class="card-title">$jsonSchema Validator — <code>{{ col.name }}</code></span>
+    <span class="badge badge-delivered">Active (strict)</span>
+  </div>
+  <div class="schema-code">{{ validator_info.get(col.name, {}) | tojson(indent=2) }}</div>
+</div>
+{% endfor %}
+
+<!-- ═══ NODE.JS INDEXING NOTE ═══ -->
+<div class="card">
+  <div class="card-header"><span class="card-title">Node.js Indexing Module</span></div>
+  <div class="alert alert-info" style="margin:0 0 16px;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    The <code>node_indexing/</code> folder contains a separate Node.js module that recreates the same indexes on the same MongoDB database using the official MongoDB Node.js driver. Run it with <code>node node_indexing/index.js</code>.
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Index</th><th>Collection</th><th>Created By</th><th>Demonstrated In</th></tr></thead>
+      <tbody>
+        <tr><td><code>idx_trackingId_unique</code></td><td>parcels</td><td>PyMongo + Node.js</td><td>Python (validation.py) + node_indexing/index.js</td></tr>
+        <tr><td><code>idx_status</code></td><td>parcels</td><td>PyMongo + Node.js</td><td>Python + Node.js</td></tr>
+        <tr><td><code>idx_destination</code></td><td>parcels</td><td>PyMongo + Node.js</td><td>Python + Node.js</td></tr>
+        <tr><td><code>idx_bookedAt</code></td><td>parcels</td><td>PyMongo</td><td>Python (indexing.py)</td></tr>
+        <tr><td><code>idx_trackingId_updatedAt_compound</code></td><td>tracking_history</td><td>PyMongo + Node.js</td><td>Python + Node.js</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-sm text-muted" style="margin-top:16px;">
+    MongoDB is idempotent for index creation — running both modules creates each index only once.
+    The indexes shown above are verified from the live database using PyMongo <code>list_indexes()</code>.
+  </p>
+</div>
+{% endblock %}

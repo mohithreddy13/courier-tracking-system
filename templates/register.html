@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Register Parcel — Courier Tracking{% endblock %}
+{% block topbar_title %}Register New Parcel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Register a New Parcel</h1>
+  <p>Fill in the sender, receiver and shipment details. A unique tracking ID will be generated automatically.</p>
+</div>
+
+<form method="POST" action="{{ url_for('register') }}" id="registerForm">
+  <div class="card">
+
+    <!-- ── Sender ── -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Sender Information
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="sender_name">Full Name <span class="required">*</span></label>
+          <input class="form-control" type="text" id="sender_name" name="sender_name" required placeholder="e.g. Rajesh Kumar" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sender_phone">Phone Number <span class="required">*</span></label>
+          <input class="form-control" type="text" id="sender_phone" name="sender_phone" required placeholder="+91 98765 43210" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="sender_email">Email Address</label>
+          <input class="form-control" type="email" id="sender_email" name="sender_email" placeholder="sender@email.com" />
+        </div>
+        <div class="form-group full">
+          <label class="form-label" for="sender_address">Address <span class="required">*</span></label>
+          <input class="form-control" type="text" id="sender_address" name="sender_address" required placeholder="House no., Street, City, PIN" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Receiver ── -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Receiver Information
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="receiver_name">Full Name <span class="required">*</span></label>
+          <input class="form-control" type="text" id="receiver_name" name="receiver_name" required placeholder="e.g. Priya Sharma" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="receiver_phone">Phone Number <span class="required">*</span></label>
+          <input class="form-control" type="text" id="receiver_phone" name="receiver_phone" required placeholder="+91 98765 43210" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="receiver_email">Email Address</label>
+          <input class="form-control" type="email" id="receiver_email" name="receiver_email" placeholder="receiver@email.com" />
+        </div>
+        <div class="form-group full">
+          <label class="form-label" for="receiver_address">Address <span class="required">*</span></label>
+          <input class="form-control" type="text" id="receiver_address" name="receiver_address" required placeholder="House no., Street, City, PIN" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Shipment ── -->
+    <div class="form-section">
+      <div class="form-section-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Shipment Details
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="origin">Origin City <span class="required">*</span></label>
+          <select class="form-control" id="origin" name="origin" required>
+            <option value="">Select city…</option>
+            {% for city in cities %}
+            <option value="{{ city }}">{{ city }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="destination">Destination City <span class="required">*</span></label>
+          <select class="form-control" id="destination" name="destination" required>
+            <option value="">Select city…</option>
+            {% for city in cities %}
+            <option value="{{ city }}">{{ city }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="weight">Weight (kg) <span class="required">*</span></label>
+          <input class="form-control" type="number" id="weight" name="weight" required min="0.01" step="0.01" placeholder="e.g. 2.5" oninput="calcCharge()" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="deliveryCharge">Delivery Charge (₹) <span class="required">*</span></label>
+          <input class="form-control" type="number" id="deliveryCharge" name="deliveryCharge" required min="0" step="0.01" placeholder="Auto-calculated" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="estimatedDelivery">Estimated Delivery Date</label>
+          <input class="form-control" type="date" id="estimatedDelivery" name="estimatedDelivery" />
+        </div>
+        <div class="form-group full">
+          <label class="form-label" for="description">Parcel Description</label>
+          <input class="form-control" type="text" id="description" name="description" placeholder="e.g. Electronics — Laptop, Clothing, Documents…" />
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;justify-content:flex-end;">
+      <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" id="cancel-register-btn">Cancel</a>
+      <button type="submit" class="btn btn-primary" id="submit-register-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14m-7-7h14"/></svg>
+        Register Parcel
+      </button>
+    </div>
+
+  </div><!-- /.card -->
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function calcCharge() {
+  const w = parseFloat(document.getElementById('weight').value) || 0;
+  const rate = 80; // ₹80 per kg base rate
+  const charge = Math.round(w * rate * 100) / 100;
+  document.getElementById('deliveryCharge').value = charge > 0 ? charge : '';
+}
+
+// Set min date for estimated delivery to today
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('estimatedDelivery').setAttribute('min', today);
+</script>
+{% endblock %}

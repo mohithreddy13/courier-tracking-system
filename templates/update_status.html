@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Update Status — Courier Tracking{% endblock %}
+{% block topbar_title %}Update Parcel Status{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Update Shipment Status</h1>
+  <p>Search for a parcel, then select the next valid status, location and remarks.</p>
+</div>
+
+<!-- ── Search ── -->
+<div class="card mb-6">
+  <form method="POST" action="{{ url_for('update_status_page') }}" id="searchStatusForm">
+    <input type="hidden" name="action" value="search" />
+    <div style="display:flex;gap:12px;align-items:flex-end;">
+      <div class="form-group" style="flex:1;">
+        <label class="form-label" for="trackingId_search">Tracking ID</label>
+        <input class="form-control" type="text" id="trackingId_search" name="trackingId"
+               placeholder="e.g. CPT-00000001"
+               value="{{ parcel.trackingId if parcel else '' }}"
+               style="font-family:monospace;font-size:1rem;letter-spacing:.04em;" required />
+      </div>
+      <button type="submit" class="btn btn-primary" id="search-parcel-btn" style="height:42px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Find Parcel
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Alerts -->
+{% if message %}
+<div class="alert alert-success">
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  {{ message }}
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error">
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  {{ error }}
+</div>
+{% endif %}
+
+{% if parcel %}
+<!-- ── Current Status Card ── -->
+<div class="card mb-6">
+  <div class="card-header">
+    <div>
+      <div class="card-title">{{ parcel.trackingId }}</div>
+      <div class="text-sm text-muted">{{ parcel.sender.name }} → {{ parcel.receiver.name }} | {{ parcel.origin }} → {{ parcel.destination }}</div>
+    </div>
+    {% set sc = {'Booked':'badge-booked','Picked Up':'badge-picked','In Transit':'badge-transit','Out for Delivery':'badge-out','Delivered':'badge-delivered','Failed Delivery':'badge-failed','Returned':'badge-returned'} %}
+    <span class="badge {{ sc.get(parcel.status, 'badge-booked') }}" style="font-size:.85rem;padding:6px 14px;">{{ parcel.status }}</span>
+  </div>
+
+  {% if transitions %}
+  <form method="POST" action="{{ url_for('update_status_page') }}" id="updateStatusForm">
+    <input type="hidden" name="action" value="update" />
+    <input type="hidden" name="trackingId" value="{{ parcel.trackingId }}" />
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label" for="new_status">New Status <span class="required">*</span></label>
+        <select class="form-control" id="new_status" name="new_status" required>
+          <option value="">Select next status…</option>
+          {% for t in transitions %}
+          <option value="{{ t }}">{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="location">Current Location <span class="required">*</span></label>
+        <select class="form-control" id="location" name="location" required>
+          <option value="">Select city…</option>
+          {% for city in cities %}
+          <option value="{{ city }}" {% if city == parcel.destination %}selected{% endif %}>{{ city }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="form-label" for="remarks">Remarks</label>
+        <input class="form-control" type="text" id="remarks" name="remarks" placeholder="e.g. Delivered to gate security, Out for delivery…" />
+      </div>
+    </div>
+    <div style="margin-top:16px;">
+      <button type="submit" class="btn btn-success" id="confirm-update-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Update Status
+      </button>
+    </div>
+  </form>
+  {% else %}
+  <div class="alert alert-info" style="margin-top:0;">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    This parcel has reached a terminal status (<strong>{{ parcel.status }}</strong>) and cannot be updated further.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── History Timeline ── -->
+{% if history %}
+<div class="card">
+  <div class="card-header"><span class="card-title">Tracking History</span></div>
+  <div class="timeline">
+    {% set dot_colors = {'Booked':'blue','Picked Up':'amber','In Transit':'purple','Out for Delivery':'teal','Delivered':'green','Failed Delivery':'red','Returned':'grey'} %}
+    {% for event in history %}
+    <div class="timeline-item">
+      <div class="timeline-dot {{ dot_colors.get(event.status, 'blue') }}"></div>
+      <div class="timeline-content">
+        <div class="timeline-status">{{ event.status }}</div>
+        <div class="timeline-location">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:3px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          {{ event.location }}
+        </div>
+        {% if event.remarks %}
+        <div class="timeline-remarks">{{ event.remarks }}</div>
+        {% endif %}
+        <div class="timeline-time">{{ event.updatedAt[:19].replace('T',' ') if event.updatedAt else '' }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
